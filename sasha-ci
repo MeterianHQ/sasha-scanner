@@ -9,14 +9,26 @@ PATH_TO_IAC=`pwd`
 PROJECT_DIR="$(basename $PATH_TO_IAC)"
 CONTAINER_WORKSPACE="/workspace/$PROJECT_DIR"
 
-VERSION="latest"
-DOCKER_FULL_IMAGE_NAME="meterian/sasha:${VERSION}"
-
+DOCKER_IMAGE_NAME="meterian/sasha"
 if [[ "$*" =~ "--canary" ]];
 then
-    DOCKER_FULL_IMAGE_NAME="meterian/sasha-canary:${VERSION}"
+    DOCKER_IMAGE_NAME="meterian/sasha-canary"
     echo "Using canary version of SASHA"
 fi
+
+VERSION="latest"
+for arg in $*
+do
+    flagAndTag="$(expr "$arg" : '\(--image:.*\)')" || true
+    maybeTag="$(echo "$flagAndTag" | cut -d: -f2)"
+    if [[ "$maybeTag" != "" ]]; then
+        VERSION="$maybeTag"
+        echo "Requested usage of image '$DOCKER_IMAGE_NAME:$VERSION'"
+    fi
+done
+
+
+DOCKER_FULL_IMAGE_NAME="$DOCKER_IMAGE_NAME:${VERSION}"
 
 docker inspect --type=image $DOCKER_FULL_IMAGE_NAME  1>/dev/null 2>/dev/null 
 if [ $? -ne 0 ]; then
@@ -24,7 +36,7 @@ if [ $? -ne 0 ]; then
     docker pull --quiet $DOCKER_FULL_IMAGE_NAME 1>/dev/null 2>/dev/null
 fi
 
-docker run --rm -it \
+docker run --rm \
     --volume "$PATH_TO_IAC":"$CONTAINER_WORKSPACE" \
     --workdir "$CONTAINER_WORKSPACE" \
     --env METERIAN_API_TOKEN=$METERIAN_API_TOKEN \
